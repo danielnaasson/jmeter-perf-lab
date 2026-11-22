@@ -34,7 +34,14 @@ console.log(`> ${exe} ${args.join(' ')}`);
 
 const run = spawnSync(exe, args, { stdio: 'inherit', shell: isWindows });
 if (run.error || run.status !== 0) {
-  console.error('\nJMeter did not run. Is Java installed and is JMeter on the PATH (or JMETER_HOME set)?');
+  console.error(`\nJMeter exited with ${run.error ? run.error.message : `code ${run.status}`}.`);
+  const log = path.join(resultsDir, 'jmeter.log');
+  if (fs.existsSync(log)) {
+    console.error(`Last lines of ${log}:`);
+    console.error(fs.readFileSync(log, 'utf8').split('\n').slice(-40).join('\n'));
+  } else {
+    console.error('No jmeter.log was written. Is Java installed and is JMeter on the PATH (or JMETER_HOME set)?');
+  }
   process.exit(run.status || 1);
 }
 console.log(`\nResults: ${jtl}\nReport:  ${path.join(report, 'index.html')}`);
