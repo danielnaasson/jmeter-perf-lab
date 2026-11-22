@@ -1,0 +1,15 @@
+{
+  "name": "jmeter-perf-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Performance testing with Apache JMeter against a small local API",
+  "scripts": {
+    "api": "node api/server.js",
+    "smoke": "node scripts/run-jmeter.js tests/smoke.jmx",
+    "check:smoke": "node scripts/check-thresholds.js results/smoke/smoke.jtl --p95=500 --errors=0",
+    "load": "node scripts/run-jmeter.js tests/load.jmx -Jusers=20 -Jrampup=20 -Jduration=120 -Jthink=500",
+    "check:load": "node scripts/check-thresholds.js results/load/load.jtl --p95=500 --errors=1",
+    "stress": "node scripts/stress.js --steps=10,20,40,60,80 --duration=30 --p95=500"
+  },
+  "license": "MIT"
+}

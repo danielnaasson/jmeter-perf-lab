@@ -1,0 +1,58 @@
+name: performance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  JMETER_VERSION: 5.6.3
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install JMeter
+        run: |
+          curl -sSfL "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz" | tar -xz -C "$RUNNER_TEMP"
+          echo "JMETER_HOME=$RUNNER_TEMP/apache-jmeter-${JMETER_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Start the API
+        run: |
+          node api/server.js > api.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://localhost:3000/health && exit 0; sleep 1; done
+          echo "API did not start" && cat api.log && exit 1
+
+      - name: Smoke test (1 user, functional checks)
+        run: npm run smoke
+
+      - name: Smoke gate (p95 <= 500 ms, 0 errors)
+        run: npm run check:smoke
+
+      - name: Load test (20 users for 2 minutes)
+        run: npm run load
+
+      - name: Load gate (p95 <= 500 ms, errors <= 1%)
+        run: npm run check:load
+
+      - name: Stress test (steps up to 80 users, finds the breaking point)
+        run: npm run stress
+
+      - name: Upload HTML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-reports
+          path: results/
