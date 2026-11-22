@@ -20,6 +20,7 @@ const duration = Number(option('duration', 30));
 const maxP95 = Number(option('p95', 500));
 
 const results = [];
+const problems = [];
 for (const users of steps) {
   const out = `stress-${users}`;
   console.log(`\n=== Step: ${users} users for ${duration}s ===`);
@@ -27,9 +28,24 @@ for (const users of steps) {
     path.join(__dirname, 'run-jmeter.js'), 'tests/load.jmx', `--out=${out}`,
     `-Jusers=${users}`, `-Jrampup=${Math.min(users, 10)}`, `-Jduration=${duration}`, '-Jthink=0',
   ], { stdio: 'inherit' });
-  if (run.status !== 0) process.exit(run.status || 1);
 
-  const total = readJtl(path.join('results', out, `${out}.jtl`)).find((s) => s.label === 'TOTAL');
+  // A failed step is reported, not fatal: the samples may still be in the .jtl
+  // (for example when only the HTML dashboard failed), and the next steps still run.
+  if (run.status !== 0) {
+    const log = path.join('results', out, 'jmeter.log');
+    const tail = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter((l) => /ERROR|WARN|Exception|Caused by/.test(l)).slice(-15).join('\n') : 'no jmeter.log';
+    problems.push({ users, status: run.status, tail });
+  }
+
+  const jtlFile = path.join('results', out, `${out}.jtl`);
+  let stats;
+  try {
+    stats = readJtl(jtlFile);
+  } catch (err) {
+    problems.push({ users, status: 'no results', tail: err.message });
+    continue;
+  }
+  const total = stats.find((s) => s.label === 'TOTAL');
   results.push({
     users,
     samples: total.samples,
@@ -73,4 +89,9 @@ writeSummary([
   '',
   verdict,
   '',
+  ...problems.map((p) => [`#### ⚠️ Step with ${p.users} users exited with ${p.status}`, '```', p.tail, '```', ''].join('\n')),
 ].join('\n'));
+
+for (const p of problems) console.error(`\nStep with ${p.users} users exited with ${p.status}:\n${p.tail}`);
+// Fail only when a step produced no results at all.
+process.exit(problems.some((p) => p.status === 'no results') ? 1 : 0);
