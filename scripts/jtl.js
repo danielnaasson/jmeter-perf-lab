@@ -85,7 +85,7 @@ function readJtl(file) {
       samples: g.elapsed.length,
       avg: Math.round(g.elapsed.reduce((a, b) => a + b, 0) / g.elapsed.length),
       p95: percentile(g.elapsed, 95),
-      max: Math.max(...g.elapsed),
+      max: g.elapsed.reduce((a, b) => Math.max(a, b), 0), // no spread: a run can have hundreds of thousands of samples
       errorRate: (g.errors / g.elapsed.length) * 100,
       throughput: g.elapsed.length / seconds,
       codes: g.codes,

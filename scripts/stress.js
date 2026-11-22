@@ -60,8 +60,8 @@ for (const users of steps) {
 const degraded = results.find((r) => r.p95 > maxP95);
 const refusing = results.find((r) => r.refused > 0);
 const verdict = [
-  degraded ? `p95 went above ${maxP95} ms at **${degraded.users} users**.` : `p95 stayed under ${maxP95} ms up to ${steps.at(-1)} users.`,
-  refusing ? `The API started refusing requests (503) at **${refusing.users} users**.` : `No 503 up to ${steps.at(-1)} users.`,
+  degraded ? `p95 went above ${maxP95} ms at **${degraded.users} users**.` : `p95 stayed under ${maxP95} ms up to ${results.length ? results.at(-1).users : 0} users.`,
+  refusing ? `The API started refusing requests (503) at **${refusing.users} users**.` : `No 503 up to ${results.length ? results.at(-1).users : 0} users.`,
 ].join(' ');
 
 console.log('\nStress steps');
